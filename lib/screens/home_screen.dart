@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-/*import 'medication_screen.dart';
+import 'medication_screen.dart';
 import 'add_medication_screen.dart';
 import 'symptom_tracker_screen.dart';
 import 'add_symptom_entry_screen.dart';
 import 'health_journal_screen.dart';
 import 'add_health_entry_screen.dart';
 import 'emergency_screen.dart';
-import 'settings_screen.dart'; */
+import 'settings_screen.dart'; 
 
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({super.key});
@@ -16,11 +16,11 @@ class HomeDashboardScreen extends StatefulWidget {
 }
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
-  final String userName = "John"; // Replace later with dynamic user name
+  final String userName = "John"; 
 
   int _currentIndex = 0;
 
-  /*void _onNavTap(int index) {
+  void _onNavTap(int index) {
     setState(() {
       _currentIndex = index;
     });
@@ -41,7 +41,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         MaterialPageRoute(builder: (context) => const HealthJournalScreen()),
       );
     }
-  }*/
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +75,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             const Spacer(),
 
             /// ✅ PROFILE AVATAR NOW TAPPABLE
-           /* GestureDetector(
+            GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
@@ -87,7 +87,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 backgroundColor: Colors.blue,
                 child: Icon(Icons.person, color: Colors.white),
               ),
-            ),*/
+            ),
           ],
         ),
       ),
@@ -135,7 +135,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             ),
             const SizedBox(height: 12),
 
-            /*Wrap(
+            Wrap(
               alignment: WrapAlignment.center,
               spacing: 16,
               runSpacing: 12,
@@ -145,7 +145,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 SizedBox(width: btnWidth, child: _quickActionButton(Icons.book, "Add Entry")),
                 SizedBox(width: btnWidth, child: _quickActionButton(Icons.call, "Emergency")),
               ],
-            ),*/
+            ),
           ],
         ),
       ),
@@ -154,7 +154,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         currentIndex: _currentIndex,
-       // onTap: _onNavTap,
+        onTap: _onNavTap,
         showSelectedLabels: true,
         showUnselectedLabels: true,
         items: const [
@@ -247,7 +247,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
-  /*Widget _quickActionButton(IconData icon, String label) {
+  Widget _quickActionButton(IconData icon, String label) {
     return Column(
       children: [
         InkWell(
@@ -275,5 +275,5 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
-  }*/
+  }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-//import 'add_health_entry_screen.dart';
+import 'add_health_entry_screen.dart';
 
 class HealthJournalScreen extends StatefulWidget {
   const HealthJournalScreen({super.key});
@@ -149,7 +149,7 @@ class _HealthJournalScreenState extends State<HealthJournalScreen>
           ),
         ],
       ),
-       /*floatingActionButton: SizedBox(
+       floatingActionButton: SizedBox(
         height: 48,
         width: 48,
         child: FloatingActionButton(
@@ -164,7 +164,7 @@ class _HealthJournalScreenState extends State<HealthJournalScreen>
             );
           },
         ),
-      ),*/
+      ),
     );
   }
 }

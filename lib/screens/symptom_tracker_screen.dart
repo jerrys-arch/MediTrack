@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-//import 'add_symptom_entry_screen.dart';
+import 'add_symptom_entry_screen.dart';
 
 class SymptomTrackerScreen extends StatefulWidget {
   const SymptomTrackerScreen({super.key});
@@ -129,7 +129,7 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
       ),
-/*
+
       floatingActionButton: SizedBox(
         height: 48,
         width: 48,
@@ -146,7 +146,7 @@ class _SymptomTrackerScreenState extends State<SymptomTrackerScreen> {
           },
         ),
       ),
-*/
+
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

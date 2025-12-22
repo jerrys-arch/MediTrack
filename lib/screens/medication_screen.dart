@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-//import 'add_medication_screen.dart';
+import 'add_medication_screen.dart';
 
 class MedicationScreen extends StatefulWidget {
   const MedicationScreen({super.key});
@@ -41,14 +41,14 @@ class _MedicationScreenState extends State<MedicationScreen> {
     },
   ];
 
-  /*void openAddMedicationScreen() {
+  void openAddMedicationScreen() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const AddMedicationScreen(),
       ),
     );
-  }*/
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +65,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
         elevation: 1,
       ),
 
-      /*floatingActionButton: Padding(
+      floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 12, right: 4),
         child: SizedBox(
           width: 52,
@@ -76,7 +76,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
             child: const Icon(Icons.add, size: 26, color: Colors.white),
           ),
         ),
-      ),*/
+      ),
 
       body: Padding(
         padding: const EdgeInsets.only(bottom: 80),
