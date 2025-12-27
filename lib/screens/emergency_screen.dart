@@ -1,4 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/api_config.dart';
 
 class EmergencyContactsScreen extends StatefulWidget {
   const EmergencyContactsScreen({super.key});
@@ -9,262 +14,221 @@ class EmergencyContactsScreen extends StatefulWidget {
 }
 
 class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
-  List<Map<String, String>> contacts = [
-    {
-      "name": "Mom",
-      "relationship": "Mother",
-      "phone": "0912345678",
-      "primary": "true"
-    },
-    {
-      "name": "John",
-      "relationship": "Friend",
-      "phone": "0987654321",
-      "primary": "false"
+  List<dynamic> contacts = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchContacts();
+  }
+
+  Future<void> _fetchContacts() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.emergencyContacts),
+        headers: {
+          'Authorization': 'Bearer ${auth.accessToken}',
+        },
+      );
+
+      if (response.statusCode == 200 && mounted) {
+        setState(() {
+          contacts = jsonDecode(response.body);
+          isLoading = false;
+        });
+      } else {
+        debugPrint('Failed to fetch contacts: ${response.body}');
+        if (mounted) setState(() => isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching contacts: $e');
+      if (mounted) setState(() => isLoading = false);
     }
-  ];
+  }
+
+  Future<void> _addContact(
+      String name, String relationship, String phone, bool isPrimary) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.emergencyContacts),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${auth.accessToken}',
+        },
+        body: jsonEncode({
+          'name': name,
+          'relationship': relationship,
+          'phone_number': phone,
+          'is_primary': isPrimary,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        _fetchContacts();
+      } else {
+        debugPrint('Failed to add contact: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Error adding contact: $e');
+    }
+  }
 
   void _openAddContactForm() {
+    final nameController = TextEditingController();
+    final relationshipController = TextEditingController();
+    final phoneController = TextEditingController();
+    bool isPrimary = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
-        final TextEditingController nameController = TextEditingController();
-        final TextEditingController relationshipController =
-            TextEditingController();
-        final TextEditingController phoneController = TextEditingController();
-        bool isPrimary = false;
-
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20,
-            right: 20,
-            top: 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Add Emergency Contact",
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold
-                ),
-              ),
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: "Name"),
-              ),
-              const SizedBox(height: 10),
-
-              TextField(
-                controller: relationshipController,
-                decoration: const InputDecoration(labelText: "Relationship"),
-              ),
-              const SizedBox(height: 10),
-
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: "Phone Number"),
-                keyboardType: TextInputType.phone,
-              ),
-
-              const SizedBox(height: 10),
-
-              Row(
-                children: [
-                  Checkbox(
-                    value: isPrimary,
-                    onChanged: (value) {
-                      setState(() {
-                        isPrimary = value ?? false;
-                      });
-                    },
-                  ),
-                  const Text("Set as Primary Contact")
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      // If new primary selected remove previous primary
-                      if (isPrimary) {
-                        for (var c in contacts) {
-                          c["primary"] = "false";
-                        }
-                      }
-
-                      contacts.add({
-                        "name": nameController.text,
-                        "relationship": relationshipController.text,
-                        "phone": phoneController.text,
-                        "primary": isPrimary.toString(),
-                      });
-                    });
-                    Navigator.pop(context);
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Add Emergency Contact",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: "Name"),
+            ),
+            TextField(
+              controller: relationshipController,
+              decoration: const InputDecoration(labelText: "Relationship"),
+            ),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(labelText: "Phone"),
+              keyboardType: TextInputType.phone,
+            ),
+            Row(
+              children: [
+                StatefulBuilder(
+                  builder: (context, setInnerState) {
+                    return Checkbox(
+                      value: isPrimary,
+                      onChanged: (v) {
+                        setInnerState(() => isPrimary = v ?? false);
+                      },
+                    );
                   },
-                  child: const Text(
-                    "Save Contact",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
+                ),
+                const Text("Set as Primary")
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  _addContact(
+                    nameController.text.trim(),
+                    relationshipController.text.trim(),
+                    phoneController.text.trim(),
+                    isPrimary,
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  "Save Contact",
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final primaryContact =
-        contacts.firstWhere((c) => c["primary"] == "true", orElse: () => {});
+        contacts.where((c) => c['is_primary'] == true).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Emergency Contacts"),
         centerTitle: true,
       ),
-
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.red,
         onPressed: _openAddContactForm,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-
-          /// -----------------------------------------
-          /// 1. Big Red SOS Button
-          /// -----------------------------------------
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {},
-              child: const Text(
-                "CALL EMERGENCY SERVICES",
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 25),
-
-          /// -----------------------------------------
-          /// 2. Primary Contact (if exists)
-          /// -----------------------------------------
-          if (primaryContact.isNotEmpty) ...[
-            const Text(
-              "Primary Contact",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.star, color: Colors.red, size: 30),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          primaryContact["name"]!,
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text(primaryContact["relationship"]!),
-                        Text(primaryContact["phone"]!),
-                      ],
-                    ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.call, color: Colors.red),
-                    onPressed: () {},
-                  )
+                  onPressed: () {
+                    // Add your emergency call action here
+                  },
+                  child: const Text(
+                    "CALL EMERGENCY SERVICES",
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+                const SizedBox(height: 25),
+                if (primaryContact.isNotEmpty) ...[
+                  const Text(
+                    "Primary Contact",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  _contactCard(primaryContact.first, true),
+                  const SizedBox(height: 30),
                 ],
-              ),
+                const Text(
+                  "Other Contacts",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                ...contacts
+                    .where((c) => c['is_primary'] == false)
+                    .map((c) => _contactCard(c, false)),
+              ],
             ),
+    );
+  }
 
-            const SizedBox(height: 30),
-          ],
-
-          /// -----------------------------------------
-          /// 3. Saved Contacts List
-          /// -----------------------------------------
-          const Text(
-            "Other Contacts",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 10),
-
-          ...contacts
-              .where((c) => c["primary"] == "false")
-              .map((contact) => Card(
-                    child: ListTile(
-                      title: Text(contact["name"]!,
-                          style: const TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w500)),
-                      subtitle: Text(
-                          "${contact["relationship"]!}\n${contact["phone"]!}"),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                              icon: const Icon(Icons.call, color: Colors.green),
-                              onPressed: () {}),
-                          IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () {}),
-                          IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  contacts.remove(contact);
-                                });
-                              }),
-                        ],
-                      ),
-                    ),
-                  ))
-        ],
+  Widget _contactCard(dynamic contact, bool isPrimary) {
+    return Card(
+      child: ListTile(
+        title: Text(contact['name']),
+        subtitle:
+            Text("${contact['relationship'] ?? ''}\n${contact['phone_number']}"),
+        isThreeLine: true,
+        trailing: isPrimary
+            ? const Icon(Icons.star, color: Colors.red)
+            : null, // no delete button
       ),
     );
   }

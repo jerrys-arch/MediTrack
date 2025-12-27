@@ -1,7 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    bool success = await authProvider.login(
+      emailController.text.trim(),
+      passwordController.text.trim(),
+    );
+
+    if (!mounted) return; 
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (success) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid credentials")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,32 +59,30 @@ class LoginScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 🔹 Back Arrow
-              // 🔹 Back Arrow (Updated to match HomeDashboardScreen)
-Align(
-  alignment: Alignment.topLeft,
-  child: IconButton(
-    icon: const Icon(Icons.arrow_back, color: Colors.black87),
-    onPressed: () {
-      Navigator.pop(context);
-    },
-  ),
-),
-
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
 
                 const SizedBox(height: 60),
 
                 // 🔹 Welcome Text
                 Center(
                   child: Column(
-                    children: [
-                      const Text(
+                    children: const [
+                      Text(
                         "Welcome Back!",
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 6),
                       Text(
                         "Log in to continue your journey",
                         style: TextStyle(
@@ -56,6 +98,7 @@ Align(
 
                 // 🔹 Email Field
                 TextField(
+                  controller: emailController,
                   decoration: InputDecoration(
                     labelText: "Email",
                     border: OutlineInputBorder(
@@ -68,6 +111,7 @@ Align(
 
                 // 🔹 Password Field
                 TextField(
+                  controller: passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: "Password",
@@ -80,81 +124,26 @@ Align(
 
                 const SizedBox(height: 10),
 
-                // 🔹 Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      "Forgot Password?",
-                      style: TextStyle(color: Colors.blue),
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 10),
 
-                // 🔹 Login Button (Updated)
+                // 🔹 Login Button
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/home');
-                  },
+                  onPressed: isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
                     backgroundColor: Colors.blue,
                   ),
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: isLoading
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
+                      : const Text(
+                          "Login",
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
-
                 const SizedBox(height: 30),
-
-                // 🔹 Divider
-                Row(
-                  children: const [
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        "or continue with",
-                        style: TextStyle(color: Colors.black54),
-                      ),
-                    ),
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey)),
-                  ],
-                ),
-
                 const SizedBox(height: 16),
-
-                // 🔹 Google Button
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: Image.asset(
-                    'assets/images/google_logo.png',
-                    height: 20,
-                  ),
-                  label: const Text("Continue with Google"),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // 🔹 Facebook Button
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: Image.asset(
-                    'assets/images/facebook_logo.png',
-                    height: 20,
-                  ),
-                  label: const Text("Continue with Facebook"),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                ),
               ],
             ),
           ),
