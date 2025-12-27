@@ -86,14 +86,6 @@ For web:
 
 flutter run -d chrome
 
-API Endpoints
-Endpoint	Method	Description
-/auth/login/	POST	Login user and get JWT token
-/auth/register/	POST	Register new user
-/medications/	GET, POST	Manage medications
-/symptoms/	GET, POST	Manage symptoms
-/journal/journals/	GET, POST	Manage health journal entries
-/emergency/contacts/	GET, POST	Manage emergency contacts
 
 All requests require JWT token in the header:
 Authorization: Bearer <token>
