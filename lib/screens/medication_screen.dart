@@ -24,9 +24,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
   }
 
   Future<void> _fetchMedications() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final token = authProvider.accessToken;
@@ -35,7 +33,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse(ApiConfig.medications), // ✅ NO userId needed
+        Uri.parse(ApiConfig.medications),
         headers: {
           'Authorization': 'Bearer $token',
         },
@@ -49,9 +47,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
             medications = List<Map<String, dynamic>>.from(decoded);
           });
         } else {
-          setState(() {
-            medications = [];
-          });
+          medications = [];
         }
       }
     } catch (e) {
@@ -59,9 +55,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
     }
 
     if (!mounted) return;
-    setState(() {
-      isLoading = false;
-    });
+    setState(() => isLoading = false);
   }
 
   void openAddMedicationScreen() async {
@@ -123,7 +117,6 @@ class _MedicationScreenState extends State<MedicationScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Frequency tag styled like a button
                 if (med["frequency"] != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -144,8 +137,6 @@ class _MedicationScreenState extends State<MedicationScreen> {
                     ),
                   ),
                 const SizedBox(height: 8),
-
-                // Time
                 Text(
                   med["time"]?.toString() ?? "",
                   style: const TextStyle(
@@ -154,8 +145,6 @@ class _MedicationScreenState extends State<MedicationScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // Reminder icon
                 Icon(
                   med["reminder"] == true
                       ? Icons.notifications_active
@@ -164,6 +153,42 @@ class _MedicationScreenState extends State<MedicationScreen> {
                   size: 26,
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(
+              Icons.medication,
+              size: 90,
+              color: Colors.blue,
+            ),
+            SizedBox(height: 20),
+            Text(
+              "No Medications Yet",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12),
+            Text(
+              "Add your medications to keep track of dosage, time, and reminders.\nTap the + button below to add your first medication.",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black54,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -199,15 +224,14 @@ class _MedicationScreenState extends State<MedicationScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : medications.isEmpty
-              ? const Center(child: Text("No medications added yet."))
+              ? _emptyState()
               : Padding(
                   padding: const EdgeInsets.only(bottom: 80),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: medications.length,
                     itemBuilder: (context, index) {
-                      final med = medications[index];
-                      return _medicationCard(med);
+                      return _medicationCard(medications[index]);
                     },
                   ),
                 ),

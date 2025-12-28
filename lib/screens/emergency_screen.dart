@@ -180,42 +180,80 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                  ),
-                  onPressed: () {
-                    // Add your emergency call action here
-                  },
-                  child: const Text(
-                    "CALL EMERGENCY SERVICES",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+          : contacts.isEmpty
+              ? _emptyState()
+              : ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                      ),
+                      onPressed: () {
+                        // emergency call action
+                      },
+                      child: const Text(
+                        "CALL EMERGENCY SERVICES",
+                        style:
+                            TextStyle(color: Colors.white, fontSize: 18),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    if (primaryContact.isNotEmpty) ...[
+                      const Text(
+                        "Primary Contact",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      _contactCard(primaryContact.first, true),
+                      const SizedBox(height: 30),
+                    ],
+                    const Text(
+                      "Other Contacts",
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    ...contacts
+                        .where((c) => c['is_primary'] == false)
+                        .map((c) => _contactCard(c, false)),
+                  ],
                 ),
-                const SizedBox(height: 25),
-                if (primaryContact.isNotEmpty) ...[
-                  const Text(
-                    "Primary Contact",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  _contactCard(primaryContact.first, true),
-                  const SizedBox(height: 30),
-                ],
-                const Text(
-                  "Other Contacts",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                ...contacts
-                    .where((c) => c['is_primary'] == false)
-                    .map((c) => _contactCard(c, false)),
-              ],
+    );
+  }
+
+  Widget _emptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(
+              Icons.contact_phone,
+              size: 80,
+              color: Colors.red,
             ),
+            SizedBox(height: 20),
+            Text(
+              "No Emergency Contacts Yet",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 12),
+            Text(
+              "Add trusted people who can be contacted in case of an emergency.\n\nTap the + button below to get started.",
+              style: TextStyle(fontSize: 16, color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -223,12 +261,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     return Card(
       child: ListTile(
         title: Text(contact['name']),
-        subtitle:
-            Text("${contact['relationship'] ?? ''}\n${contact['phone_number']}"),
+        subtitle: Text(
+            "${contact['relationship'] ?? ''}\n${contact['phone_number']}"),
         isThreeLine: true,
-        trailing: isPrimary
-            ? const Icon(Icons.star, color: Colors.red)
-            : null, // no delete button
+        trailing:
+            isPrimary ? const Icon(Icons.star, color: Colors.red) : null,
       ),
     );
   }
