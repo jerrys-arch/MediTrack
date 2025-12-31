@@ -71,49 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 15),
 
-            // Language Selection
-            const Text(
-              "Language",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField(
-              initialValue: selectedLanguage,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: "English", child: Text("English")),
-                DropdownMenuItem(value: "Amharic", child: Text("Amharic")),
-                DropdownMenuItem(value: "Oromo", child: Text("Oromo")),
-              ],
-              onChanged: (value) {
-                setState(() => selectedLanguage = value.toString());
-              },
-            ),
-            const SizedBox(height: 25),
-
-            // Theme Section
-            const Text(
-              "Theme Mode",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField(
-              initialValue: selectedTheme,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: "Light", child: Text("Light")),
-                DropdownMenuItem(value: "Dark", child: Text("Dark")),
-              ],
-              onChanged: (value) {
-                setState(() => selectedTheme = value.toString());
-              },
-            ),
-            const SizedBox(height: 35),
-
+           
             // Logout Button
             ElevatedButton.icon(
               onPressed: () {

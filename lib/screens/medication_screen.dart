@@ -201,13 +201,19 @@ class _MedicationScreenState extends State<MedicationScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           "Medication Schedule",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 1,
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 12, right: 4),
@@ -221,20 +227,20 @@ class _MedicationScreenState extends State<MedicationScreen> {
           ),
         ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : medications.isEmpty
-              ? _emptyState()
-              : Padding(
-                  padding: const EdgeInsets.only(bottom: 80),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : medications.isEmpty
+                ? _emptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80),
                     itemCount: medications.length,
                     itemBuilder: (context, index) {
                       return _medicationCard(medications[index]);
                     },
                   ),
-                ),
+      ),
     );
   }
 }

@@ -14,17 +14,27 @@ class AuthProvider with ChangeNotifier {
   String? _userId;
   String? _userName;
 
+  // 🔹 Global notification toggle
+  bool _notificationsEnabled = true;
+
   String? get accessToken => _accessToken;
   bool get isAuthenticated => _accessToken != null;
 
   String? get userId => _userId;
   String? get userName => _userName;
 
+  bool get notificationsEnabled => _notificationsEnabled;
+
+  // ------------------------
+  // Load tokens and notification preference
+  // ------------------------
   Future<void> loadTokens() async {
     _accessToken = await _storage.read(key: 'accessToken');
     _refreshToken = await _storage.read(key: 'refreshToken');
     _userId = await _storage.read(key: 'userId');
     _userName = await _storage.read(key: 'userName');
+    final notif = await _storage.read(key: 'notificationsEnabled');
+    _notificationsEnabled = notif == null ? true : notif == 'true';
     notifyListeners();
   }
 
@@ -37,7 +47,7 @@ class AuthProvider with ChangeNotifier {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
-        'full_name': fullName, // ✅ include full_name
+        'full_name': fullName,
         'password': password,
       }),
     );
@@ -85,6 +95,15 @@ class AuthProvider with ChangeNotifier {
     _userId = null;
     _userName = null;
     await _storage.deleteAll();
+    notifyListeners();
+  }
+
+  // ------------------------
+  // 🔹 Notification toggle methods
+  // ------------------------
+  void setNotificationsEnabled(bool value) async {
+    _notificationsEnabled = value;
+    await _storage.write(key: 'notificationsEnabled', value: value.toString());
     notifyListeners();
   }
 }

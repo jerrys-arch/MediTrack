@@ -1,18 +1,22 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  // Android emulator → maps to host machine localhost
-  static const String _androidEmulator = "http://10.0.2.2:8000/api";
+  // Your PC's local IP (real phone access)
+  static const String _androidPhysical =
+      "http://192.168.1.102:8000/api";
 
-  // Default local backend (for Web/Desktop)
-  static const String _localhost = "http://localhost:8000/api";
+  // Android Emulator
+ // static const String _androidEmulator =
+   //   "http://10.0.2.2:8000/api";
+
+  // Web / Desktop
+  static const String _localhost =
+      "http://localhost:8000/api";
 
   static String get baseUrl {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return _androidEmulator; // Android emulator
+      return _androidPhysical; // REAL PHONE
     }
-
-    // Web / Desktop → use localhost
     return _localhost;
   }
 
