@@ -17,11 +17,30 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
 
   String name = "";
   String dosage = "";
-  String time = "";
+  TimeOfDay? selectedTime;
   String notes = "";
   String frequency = "Daily";
   bool reminderEnabled = true;
   bool isSaving = false;
+
+  Future<void> _pickTime() async {
+    final TimeOfDay? time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time != null) {
+      setState(() {
+        selectedTime = time;
+      });
+    }
+  }
+
+  String getFormattedTime() {
+    if (selectedTime == null) return "";
+    final hour = selectedTime!.hour.toString().padLeft(2, '0');
+    final minute = selectedTime!.minute.toString().padLeft(2, '0');
+    return "$hour:$minute";
+  }
 
   Future<void> _saveMedication() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -41,13 +60,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-         
           'name': name,
           'dosage': dosage,
-          'time': time,
+          'time': getFormattedTime(), // ✅ formatted time
           'frequency': frequency,
           'notes': notes,
-          'reminder': reminderEnabled, // ✅ FIXED
+          'reminder': reminderEnabled,
         }),
       );
 
@@ -81,10 +99,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Add Medication",
-          style: TextStyle(color: Colors.black87),
-        ),
+        title: const Text("Add Medication", style: TextStyle(color: Colors.black87)),
         centerTitle: true,
       ),
       body: Padding(
@@ -95,23 +110,16 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Medication Name",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const Text("Medication Name", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   decoration: const InputDecoration(border: OutlineInputBorder()),
                   onSaved: (val) => name = val ?? "",
-                  validator: (val) =>
-                      val == null || val.isEmpty ? 'Please enter medication name' : null,
+                  validator: (val) => val == null || val.isEmpty ? 'Please enter medication name' : null,
                 ),
                 const SizedBox(height: 16),
 
-                const Text(
-                  "Dosage (e.g. 100mg)",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const Text("Dosage (e.g. 100mg)", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -119,21 +127,21 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                const Text(
-                  "Time (e.g. 8:00 AM)",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const Text("Time", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-                TextFormField(
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                  onSaved: (val) => time = val ?? "",
+                InkWell(
+                  onTap: _pickTime,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: "Select Time",
+                    ),
+                    child: Text(selectedTime != null ? selectedTime!.format(context) : "Select Time"),
+                  ),
                 ),
                 const SizedBox(height: 16),
 
-                const Text(
-                  "Frequency",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const Text("Frequency", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -141,16 +149,11 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   items: ["Daily", "Weekly", "Custom"]
                       .map((f) => DropdownMenuItem(value: f, child: Text(f)))
                       .toList(),
-                  onChanged: (val) {
-                    setState(() => frequency = val!);
-                  },
+                  onChanged: (val) => setState(() => frequency = val!),
                 ),
                 const SizedBox(height: 16),
 
-                const Text(
-                  "Notes",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+                const Text("Notes", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   maxLines: 2,
@@ -163,9 +166,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text("Enable Reminder", style: TextStyle(fontSize: 16)),
                   value: reminderEnabled,
-                  onChanged: (bool newValue) {
-                    setState(() => reminderEnabled = newValue);
-                  },
+                  onChanged: (bool newValue) => setState(() => reminderEnabled = newValue),
                 ),
                 const SizedBox(height: 30),
 
@@ -176,19 +177,13 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: isSaving
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
                             "Save Medication",
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                   ),
                 ),

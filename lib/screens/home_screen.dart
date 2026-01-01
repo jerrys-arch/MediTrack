@@ -39,14 +39,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     setState(() => _currentIndex = index);
 
     if (index == 1) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MedicationScreen()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const MedicationScreen()));
     } else if (index == 2) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const SymptomTrackerScreen()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const SymptomTrackerScreen()));
     } else if (index == 3) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const HealthJournalScreen()));
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const HealthJournalScreen()));
     }
   }
 
@@ -69,6 +69,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
         final now = DateTime.now();
 
+        // Filter today's medications (based on created_at)
         todaysMedications = allMedications.where((med) {
           final createdAt = DateTime.tryParse(med['created_at'] ?? '');
           if (createdAt == null) return false;
@@ -77,8 +78,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               createdAt.day == now.day;
         }).toList();
 
-        upcomingReminders =
-            allMedications.where((med) => med['reminder'] == true).toList();
+        // Filter upcoming reminders (only if reminder is true AND not yet taken)
+        upcomingReminders = allMedications
+            .where((med) => med['reminder'] == true && (med['taken'] == false || med['taken'] == null))
+            .toList();
       }
     } catch (e) {
       debugPrint('Error fetching medications: $e');
@@ -88,8 +91,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   Future<void> _markMedicationAsTaken(int medId) async {
-    final token =
-        Provider.of<AuthProvider>(context, listen: false).accessToken;
+    final token = Provider.of<AuthProvider>(context, listen: false).accessToken;
     if (token == null) return;
 
     try {
@@ -118,22 +120,26 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       );
       if (result == true) _fetchMedications();
     } else if (label == "Log Symptom") {
-      await Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const AddSymptomEntryScreen()));
+      await Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const AddSymptomEntryScreen()));
     } else if (label == "Add Entry") {
-      await Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const AddHealthEntryScreen()));
+      await Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const AddHealthEntryScreen()));
     } else if (label == "Emergency") {
-      await Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()));
+      await Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()));
     }
+  }
+
+  // Helper to display time or fallback
+  String _displayTime(String? time) {
+    if (time == null || time.trim().isEmpty) return "No time set";
+    return time;
   }
 
   @override
   Widget build(BuildContext context) {
-    final userName =
-        Provider.of<AuthProvider>(context).userName ?? "User";
-
+    final userName = Provider.of<AuthProvider>(context).userName ?? "User";
     final btnWidth = (MediaQuery.of(context).size.width - 48) / 2;
 
     return Scaffold(
@@ -144,16 +150,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         title: Text(
           "Good Morning, $userName",
           style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 20,
-              fontWeight: FontWeight.bold),
+              color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.person, color: Colors.blue),
             onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           )
         ],
@@ -169,37 +173,32 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-
                   todaysMedications.isEmpty
                       ? _infoCard(
                           icon: Icons.medication,
                           title: "No medications today",
-                          subtitle:
-                              "Your medications will appear here once added.",
+                          subtitle: "Your medications will appear here once added.",
                         )
                       : Column(
                           children: todaysMedications
                               .map((med) => _medicationCard(
                                     med['id'],
-                                    med['name'],
-                                    med['time'],
+                                    med['name'] ?? 'Unnamed',
+                                    _displayTime(med['time']),
                                     med['taken'] ?? false,
                                   ))
                               .toList(),
                         ),
-
                   const SizedBox(height: 24),
                   const Text("Upcoming Reminders",
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-
                   upcomingReminders.isEmpty
                       ? _infoCard(
                           icon: Icons.notifications_off,
                           title: "No reminders yet",
-                          subtitle:
-                              "Reminders will show here when enabled.",
+                          subtitle: "Reminders will show here when enabled.",
                         )
                       : SizedBox(
                           height: 180,
@@ -207,57 +206,54 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             scrollDirection: Axis.horizontal,
                             children: upcomingReminders
                                 .map((med) =>
-                                    _reminderCard(med['name'], med['time']))
+                                    _reminderCard(med['name'] ?? 'Unnamed', _displayTime(med['time'])))
                                 .toList(),
                           ),
                         ),
-
                   const SizedBox(height: 24),
                   const Text("Quick Actions",
                       style:
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-
                   Wrap(
                     spacing: 16,
                     runSpacing: 12,
                     children: [
                       SizedBox(
                           width: btnWidth,
-                          child: _quickActionButton(
-                              Icons.add_circle, "Add Medication")),
+                          child: _quickActionButton(Icons.add_circle, "Add Medication")),
                       SizedBox(
                           width: btnWidth,
-                          child: _quickActionButton(
-                              Icons.fact_check, "Log Symptom")),
+                          child: _quickActionButton(Icons.fact_check, "Log Symptom")),
                       SizedBox(
                           width: btnWidth,
-                          child:
-                              _quickActionButton(Icons.book, "Add Entry")),
+                          child: _quickActionButton(Icons.book, "Add Entry")),
                       SizedBox(
                           width: btnWidth,
-                          child: _quickActionButton(
-                              Icons.call, "Emergency")),
+                          child: _quickActionButton(Icons.call, "Emergency")),
                     ],
                   ),
                 ],
               ),
             ),
-   
-  bottomNavigationBar
-  : BottomNavigationBar
-  ( selectedItemColor: Colors.blue, unselectedItemColor: Colors.grey, 
-  currentIndex: _currentIndex, 
-  onTap: _onNavTap, 
-  showSelectedLabels: true, 
-  showUnselectedLabels: true, 
-  items: const [ BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"), 
-  BottomNavigationBarItem(icon: Icon(Icons.medication), label: "Medications"), 
-  BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Tracker"), 
-  BottomNavigationBarItem(icon: Icon(Icons.book), label: "Journal"), ], ), ); }
+      bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        currentIndex: _currentIndex,
+        onTap: _onNavTap,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.medication), label: "Medications"),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Tracker"),
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: "Journal"),
+        ],
+      ),
+    );
+  }
 
   // ---------- Shared UI ----------
-
   Widget _infoCard({
     required IconData icon,
     required String title,
@@ -267,8 +263,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: Icon(icon, color: Colors.blue),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle),
       ),
     );
@@ -299,9 +294,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 3))
+            color: Colors.grey.withAlpha(50),
+            blurRadius: 4,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -309,9 +305,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         children: [
           const Icon(Icons.notifications_active, color: Colors.blue),
           const SizedBox(height: 8),
-          Text(name,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           Text(time, style: const TextStyle(color: Colors.grey)),
         ],
       ),
@@ -319,22 +313,21 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   Widget _quickActionButton(IconData icon, String label) {
-  return InkWell(
-    onTap: () => _handleQuickAction(label),
-    splashColor: Colors.transparent,   // removes ripple effect
-    highlightColor: Colors.transparent, // removes highlight on press
-    child: Column(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: Colors.blue.shade50,
-          child: Icon(icon, color: Colors.blue),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
-    ),
-  );
-}
-
+    return InkWell(
+      onTap: () => _handleQuickAction(label),
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.blue.shade50,
+            child: Icon(icon, color: Colors.blue),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
 }
