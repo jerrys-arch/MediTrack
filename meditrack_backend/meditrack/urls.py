@@ -16,13 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', lambda request: JsonResponse({"message": "API is live"})), 
     path('api/auth/', include('users.urls')),  # auth endpoints for Flutter
-     path('api/medications/', include('medications.urls')),
-     path('api/symptoms/', include('symptoms.urls')),
-     path('api/journal/', include('journal.urls')),
-     path('api/emergency/', include('emergency.urls')), 
+    path('api/medications/', include('medications.urls')),
+    path('api/symptoms/', include('symptoms.urls')),
+    path('api/journal/', include('journal.urls')),
+    path('api/emergency/', include('emergency.urls')), 
 ]
 
