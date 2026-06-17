@@ -1,13 +1,16 @@
 from rest_framework import serializers
 from .models import Medication
 
+
 class MedicationSerializer(serializers.ModelSerializer):
     time = serializers.TimeField(
-        format="%H:%M",
-        input_formats=["%H:%M", "%H:%M:%S"],
+        format='%H:%M',
+        input_formats=['%H:%M', '%H:%M:%S'],
         required=False,
-        allow_null=True
+        allow_null=True,
     )
+    # Write-only: caregiver passes the patient's user id
+    patient_id = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = Medication
@@ -21,4 +24,5 @@ class MedicationSerializer(serializers.ModelSerializer):
             'taken',
             'notes',
             'created_at',
+            'patient_id',
         ]

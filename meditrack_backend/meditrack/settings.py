@@ -24,7 +24,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-%v^y_prcyh4$u(bos)objx)_zx
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 # Allowed hosts (set as environment variable on Render)
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost 127.0.0.1').split()
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost 127.0.0.1 192.168.1.12').split()
 
 # Application definition
 INSTALLED_APPS = [
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'symptoms',
     'journal',
     'emergency',
+    'care'
 ]
 
 MIDDLEWARE = [

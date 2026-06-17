@@ -14,11 +14,13 @@ dependencies:
   provider: ^6.0.5
   cupertino_icons: ^1.0.8
   
-
-
+  flutter_local_notifications: ^17.0.0
+  timezone: ^0.9.4
+  shared_preferences: ^2.3.2
   # Added packages for backend integration
   http: ^1.1.0
   flutter_secure_storage: ^8.1.0
+  flutter_timezone: ^5.0.2
 
  
 

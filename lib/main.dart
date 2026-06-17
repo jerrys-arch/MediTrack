@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// 🔹 Import all providers
+import 'services/notification_service.dart';
+
 import 'providers/auth_provider.dart';
 import 'providers/medication_provider.dart';
 import 'providers/symptom_provider.dart';
 import 'providers/journal_provider.dart';
 import 'providers/emergency_provider.dart';
 
-// 🔹 Import screens
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(const MyApp());
 }
 
@@ -45,18 +47,52 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// 🔹 Decides which screen to show based on login state
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
 
-    if (authProvider.accessToken != null) {
-      return const HomeDashboardScreen();
-    } else {
-      return const WelcomeScreen();
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    // Load saved tokens from storage
+    await auth.loadTokens();
+
+    // If we have a refresh token, try to get a fresh access token
+    // This handles the case where the access token expired while app was closed
+    if (auth.refreshToken != null) {
+      await auth.refreshAccessToken();
     }
+
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final auth = Provider.of<AuthProvider>(context);
+    if (auth.isAuthenticated) {
+      return const HomeDashboardScreen();
+    }
+    return const WelcomeScreen();
   }
 }

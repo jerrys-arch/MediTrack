@@ -26,5 +26,6 @@ urlpatterns = [
     path('api/symptoms/', include('symptoms.urls')),
     path('api/journal/', include('journal.urls')),
     path('api/emergency/', include('emergency.urls')), 
+    path('api/care/', include('care.urls')),   
 ]
 
