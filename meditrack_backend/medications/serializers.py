@@ -18,7 +18,7 @@ class MedicationSerializer(serializers.ModelSerializer):
             'name',
             'dosage',
             'frequency',
-            'day_of_week',
+            'day_of_week',   # now also readable, not just writable
             'time',
             'reminder',
             'taken',

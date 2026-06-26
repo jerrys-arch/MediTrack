@@ -21,6 +21,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   TimeOfDay? selectedTime;
   String notes = '';
   String frequency = 'Daily';
+  int? selectedDayOfWeek; // 0=Monday ... 6=Sunday, only used when frequency == Weekly
   bool reminderEnabled = true;
   bool isSaving = false;
 
@@ -29,6 +30,16 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   int? selectedPatientId;
   String? selectedPatientName;
   bool loadingPatients = false;
+
+  static const List<String> _dayLabels = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
 
   @override
   void initState() {
@@ -97,6 +108,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       return;
     }
 
+    // Weekly medications need a day of week
+    if (frequency == 'Weekly' && selectedDayOfWeek == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a day of the week.')),
+      );
+      return;
+    }
+
     setState(() => isSaving = true);
 
     try {
@@ -109,6 +128,10 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         'notes': notes,
         'reminder': reminderEnabled,
       };
+
+      if (frequency == 'Weekly' && selectedDayOfWeek != null) {
+        body['day_of_week'] = selectedDayOfWeek.toString();
+      }
 
       // If caregiver, add patient id so backend assigns it to the patient
       if (auth.isCaregiver && selectedPatientId != null) {
@@ -133,13 +156,24 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         if (reminderEnabled && selectedTime != null) {
           if (auth.isPatient) {
             // Patient gets a reminder for themselves
-            await NotificationService().scheduleDailyNotification(
-              id: medId,
-              title: '💊 Time for $name',
-              body: 'Dosage: $dosage — tap to confirm',
-              hour: selectedTime!.hour,
-              minute: selectedTime!.minute,
-            );
+            if (frequency == 'Weekly' && selectedDayOfWeek != null) {
+              await NotificationService().scheduleWeeklyNotification(
+                id: medId,
+                title: '💊 Time for $name',
+                body: 'Dosage: $dosage — tap to confirm',
+                dayOfWeek: selectedDayOfWeek!,
+                hour: selectedTime!.hour,
+                minute: selectedTime!.minute,
+              );
+            } else {
+              await NotificationService().scheduleDailyNotification(
+                id: medId,
+                title: '💊 Time for $name',
+                body: 'Dosage: $dosage — tap to confirm',
+                hour: selectedTime!.hour,
+                minute: selectedTime!.minute,
+              );
+            }
           } else if (auth.isCaregiver && selectedPatientName != null) {
             // Caregiver gets a missed dose alert if patient doesn't confirm
             await NotificationService().scheduleMissedDoseAlert(
@@ -148,7 +182,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
               medicationName: name,
               hour: selectedTime!.hour,
               minute: selectedTime!.minute,
-              graceMinutes: 60,
+              graceMinutes: 3,
             );
           }
         }
@@ -156,8 +190,12 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
         if (mounted) Navigator.pop(context, true);
       } else {
         if (mounted) {
+          final errorBody = jsonDecode(response.body);
+          final errorMsg = errorBody is Map
+              ? errorBody.values.first.toString()
+              : 'Failed to add medication.';
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to add medication.')),
+            SnackBar(content: Text(errorMsg)),
           );
         }
       }
@@ -247,7 +285,6 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                               onChanged: (val) {
                                 setState(() {
                                   selectedPatientId = val;
-                                  // Store name for the notification
                                   final rel = myPatients.firstWhere(
                                     (r) => r['patient_detail']['id'] == val,
                                   );
@@ -334,8 +371,64 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
                       .map((f) =>
                           DropdownMenuItem(value: f, child: Text(f)))
                       .toList(),
-                  onChanged: (val) => setState(() => frequency = val!),
+                  onChanged: (val) => setState(() {
+                    frequency = val!;
+                    // Reset day selection if switching away from Weekly
+                    if (frequency != 'Weekly') selectedDayOfWeek = null;
+                  }),
                 ),
+
+                // ── Day of week (only for Weekly) ───────────────────────────
+                if (frequency == 'Weekly') ...[
+                  const SizedBox(height: 16),
+                  const Text('Day of the week',
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<int>(
+                    decoration:
+                        const InputDecoration(border: OutlineInputBorder()),
+                    hint: const Text('Select day'),
+                    initialValue: selectedDayOfWeek,
+                    items: List.generate(7, (i) => i).map((dayIndex) {
+                      return DropdownMenuItem<int>(
+                        value: dayIndex,
+                        child: Text(_dayLabels[dayIndex]),
+                      );
+                    }).toList(),
+                    onChanged: (val) => setState(() => selectedDayOfWeek = val),
+                    validator: (val) => frequency == 'Weekly' && val == null
+                        ? 'Please select a day'
+                        : null,
+                  ),
+                ],
+
+                // ── Custom frequency note ───────────────────────────────────
+                if (frequency == 'Custom') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Custom frequency currently reminds you daily. '
+                            'Full custom scheduling is coming soon.',
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 // ── Notes ──────────────────────────────────────────────────

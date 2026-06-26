@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_config.dart';
+import '../services/notification_service.dart';
 import 'medication_screen.dart';
 import 'add_medication_screen.dart';
 import 'symptom_tracker_screen.dart';
@@ -30,7 +32,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   // ── Caregiver data ─────────────────────────────────────────────
   List<Map<String, dynamic>> myPatients = [];
-  // patientDoses[patientId] = list of today's dose logs
   Map<int, List<Map<String, dynamic>>> patientDoses = {};
 
   bool isLoading = true;
@@ -75,11 +76,84 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 med['reminder'] == true &&
                 (med['taken'] == false || med['taken'] == null))
             .toList();
+
+        // ── Ensure local reminders are scheduled on THIS device ──────────
+        // This is the fix for: caregiver adds medication on their phone,
+        // but the patient's phone never schedules its own local alarm.
+        // Every time the patient opens their dashboard, we check each
+        // medication that has reminder=true and schedule it locally if
+        // we haven't already (tracked via shared_preferences so we don't
+        // re-schedule the same alarm over and over).
+        await _ensureLocalRemindersScheduled(allMedications);
       }
     } catch (e) {
       debugPrint('Error fetching medications: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  /// Schedules a local notification for any medication with reminder=true
+  /// that hasn't already been scheduled on this device.
+  Future<void> _ensureLocalRemindersScheduled(
+      List<Map<String, dynamic>> medications) async {
+    final prefs = await SharedPreferences.getInstance();
+    final scheduledIds =
+        prefs.getStringList('scheduledReminderIds') ?? <String>[];
+
+    bool changed = false;
+
+    for (final med in medications) {
+      final reminder = med['reminder'] == true;
+      final timeStr = med['time'] as String?;
+      final medId = med['id'];
+
+      if (!reminder || timeStr == null || timeStr.trim().isEmpty) continue;
+      if (medId == null) continue;
+
+      final idKey = medId.toString();
+      if (scheduledIds.contains(idKey)) continue; // already scheduled
+
+      final parts = timeStr.split(':');
+      if (parts.length < 2) continue;
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) continue;
+
+      final name = med['name'] ?? 'Medication';
+      final dosage = med['dosage'] ?? '';
+      final frequency = med['frequency'] ?? 'Daily';
+      final dayOfWeek = med['day_of_week'];
+
+      try {
+        if (frequency == 'Weekly' && dayOfWeek != null) {
+          await NotificationService().scheduleWeeklyNotification(
+            id: medId,
+            title: '💊 Time for $name',
+            body: 'Dosage: $dosage — tap to confirm',
+            dayOfWeek: dayOfWeek is int ? dayOfWeek : int.parse(dayOfWeek.toString()),
+            hour: hour,
+            minute: minute,
+          );
+        } else {
+          await NotificationService().scheduleDailyNotification(
+            id: medId,
+            title: '💊 Time for $name',
+            body: 'Dosage: $dosage — tap to confirm',
+            hour: hour,
+            minute: minute,
+          );
+        }
+        scheduledIds.add(idKey);
+        changed = true;
+        debugPrint('✅ Locally scheduled reminder for $name (id: $medId)');
+      } catch (e) {
+        debugPrint('Failed to schedule local reminder for $name: $e');
+      }
+    }
+
+    if (changed) {
+      await prefs.setStringList('scheduledReminderIds', scheduledIds);
     }
   }
 
@@ -89,7 +163,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     if (token == null) return;
 
     try {
-      // First find the pending DoseLog for this medication
       final dosesResponse = await http.get(
         Uri.parse('${ApiConfig.care}doses/'),
         headers: {'Authorization': 'Bearer $token'},
@@ -103,7 +176,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
         if (pending.isNotEmpty) {
           final doseLogId = pending.first['id'];
-          // Confirm the dose via care API
           final confirmResponse = await http.post(
             Uri.parse('${ApiConfig.care}doses/confirm/'),
             headers: {
@@ -114,7 +186,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           );
 
           if (confirmResponse.statusCode == 200) {
-            // Also update the medication taken field for backward compat
             await http.patch(
               Uri.parse('${ApiConfig.medications}$medId/'),
               headers: {
@@ -123,10 +194,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               },
               body: jsonEncode({'taken': true}),
             );
+            // Cancel the local reminder/missed-dose alert since it's confirmed
+            await NotificationService().cancelNotification(medId);
             if (mounted) await _fetchMedications(token);
           }
         } else {
-          // No DoseLog found — fall back to old patch
           await http.patch(
             Uri.parse('${ApiConfig.medications}$medId/'),
             headers: {
@@ -135,6 +207,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             },
             body: jsonEncode({'taken': true}),
           );
+          await NotificationService().cancelNotification(medId);
           if (mounted) await _fetchMedications(token);
         }
       }
@@ -155,7 +228,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       if (response.statusCode == 200 && mounted) {
         final List data = jsonDecode(response.body);
         myPatients = List<Map<String, dynamic>>.from(data);
-        // Fetch today's doses for each patient
         for (final rel in myPatients) {
           final patient = rel['patient_detail'];
           if (patient != null) {
@@ -186,7 +258,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     }
   }
 
-  // ── Quick actions (patient only) ───────────────────────────────
+  // ── Quick actions ───────────────────────────────
 
   Future<void> _handleQuickAction(String label) async {
     if (label == "Add Medication") {
@@ -195,9 +267,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         MaterialPageRoute(builder: (_) => const AddMedicationScreen()),
       );
       if (result == true && mounted) {
-        final token =
-            Provider.of<AuthProvider>(context, listen: false).accessToken;
-        if (token != null) _fetchMedications(token);
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        if (auth.isCaregiver) {
+          await _fetchPatients(auth.accessToken!);
+        } else if (auth.accessToken != null) {
+          await _fetchMedications(auth.accessToken!);
+        }
       }
     } else if (label == "Log Symptom") {
       await Navigator.push(
@@ -298,24 +373,16 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Role badge
           _roleBadge('Caregiver', Colors.blue),
           const SizedBox(height: 20),
-
-          // ── Summary row
           _caregiverSummaryRow(),
           const SizedBox(height: 24),
-
-          // ── Invite a patient
           _invitePatientCard(),
           const SizedBox(height: 24),
-
-          // ── Patients list
           const Text('Your Patients',
               style:
                   TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-
           myPatients.isEmpty
               ? _infoCard(
                   icon: Icons.people_outline,
@@ -332,7 +399,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     return _patientCard(patient, doses);
                   }).toList(),
                 ),
-
           const SizedBox(height: 24),
           const Text('Quick Actions',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -579,7 +645,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Patient name + status
             Row(
               children: [
                 CircleAvatar(
@@ -608,7 +673,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     ],
                   ),
                 ),
-                // Alert badge if any missed
                 if (missedCount > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -633,11 +697,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   ),
               ],
             ),
-
-            // Dose breakdown if there are doses
             if (total > 0) ...[
               const SizedBox(height: 12),
-              // Progress bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
@@ -661,8 +722,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 ],
               ),
             ],
-
-            // Individual dose list
             if (doses.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Divider(height: 1),
@@ -740,7 +799,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Role badge + link with caregiver
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -754,8 +812,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             ],
           ),
           const SizedBox(height: 20),
-
-          // ── Today's medications
           const Text("Today's Medications",
               style:
                   TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -778,8 +834,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       .toList(),
                 ),
           const SizedBox(height: 24),
-
-          // ── Upcoming reminders
           const Text('Upcoming Reminders',
               style:
                   TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -802,8 +856,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   ),
                 ),
           const SizedBox(height: 24),
-
-          // ── Quick actions
           const Text('Quick Actions',
               style:
                   TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
