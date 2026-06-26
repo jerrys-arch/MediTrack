@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
@@ -11,6 +12,41 @@ from .serializers import (
     DoseLogSerializer,
     ConfirmDoseSerializer,
 )
+
+
+# ── Lazy dose log generation ───────────────────────────────────────────────
+# Called whenever a patient's or caregiver's dashboard is loaded.
+# Ensures "today's" dose log exists for every active medication that is
+# due today, based on its frequency (Daily / Weekly / Custom).
+
+def ensure_todays_dose_logs(patient):
+    """
+    Creates any missing DoseLog rows for `patient` for today, based on
+    each of their medications' frequency and scheduled time.
+    Safe to call repeatedly — uses get_or_create so it never duplicates.
+    """
+    from medications.models import Medication  # local import avoids circular import
+
+    today = timezone.localdate()
+
+    medications = Medication.objects.filter(user=patient, is_active=True)
+
+    for medication in medications:
+        if not medication.is_due_today(today):
+            continue
+
+        scheduled_dt = timezone.make_aware(
+            datetime.combine(today, medication.time)
+        )
+
+        DoseLog.objects.get_or_create(
+            medication=medication,
+            scheduled_time=scheduled_dt,
+            defaults={
+                'patient': patient,
+                'status': DoseLog.STATUS_PENDING,
+            },
+        )
 
 
 # ── Caregiver: create an invite ───────────────────────────────────────────────
@@ -78,7 +114,10 @@ class MyDosesView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        today = timezone.now().date()
+        # Lazily create today's dose logs before returning them
+        ensure_todays_dose_logs(self.request.user)
+
+        today = timezone.localdate()
         return DoseLog.objects.filter(
             patient=self.request.user,
             scheduled_time__date=today,
@@ -97,7 +136,7 @@ def confirm_dose(request):
 
     log = DoseLog.objects.get(
         pk=serializer.validated_data['dose_log_id'],
-        patient=request.user,          # ensure ownership
+        patient=request.user,
         status=DoseLog.STATUS_PENDING,
     )
     log.status = DoseLog.STATUS_TAKEN
@@ -113,7 +152,6 @@ def confirm_dose(request):
 @permission_classes([IsAuthenticated])
 def patient_doses(request, patient_id):
     """Caregiver views dose logs for one of their patients."""
-    # Verify the caregiver actually manages this patient
     is_linked = CareRelationship.objects.filter(
         caregiver=request.user,
         patient_id=patient_id,
@@ -126,7 +164,13 @@ def patient_doses(request, patient_id):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    today = timezone.now().date()
+    # Lazily create today's dose logs for this patient before returning them
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    patient = User.objects.get(pk=patient_id)
+    ensure_todays_dose_logs(patient)
+
+    today = timezone.localdate()
     logs = DoseLog.objects.filter(
         patient_id=patient_id,
         scheduled_time__date=today,
@@ -136,7 +180,6 @@ def patient_doses(request, patient_id):
 
 
 # ── Utility: mark overdue doses as missed ─────────────────────────────────────
-# Call this from a management command or a scheduled task (e.g. Celery beat)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

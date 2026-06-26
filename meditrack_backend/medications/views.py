@@ -1,9 +1,8 @@
-from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from care.models import CareRelationship, DoseLog
+from care.models import CareRelationship
 from .models import Medication
 from .serializers import MedicationSerializer
 
@@ -48,31 +47,15 @@ class MedicationListCreateView(generics.ListCreateAPIView):
             except User.DoesNotExist:
                 raise ValidationError({'patient_id': 'Patient not found.'})
 
-            medication = serializer.save(user=patient, created_by=user)
+            serializer.save(user=patient, created_by=user)
         else:
-            medication = serializer.save(user=user, created_by=None)
+            serializer.save(user=user, created_by=None)
 
-        # Always try to create a DoseLog if time is set
-        if medication.time:
-            _create_dose_log_for_today(medication)
-
-
-def _create_dose_log_for_today(medication):
-    """Creates a DoseLog for today regardless of whether time has passed."""
-    today = timezone.localdate()
-    scheduled_dt = timezone.make_aware(
-        timezone.datetime.combine(today, medication.time)
-    )
-
-    # Create even if time already passed today so it shows up immediately
-    DoseLog.objects.get_or_create(
-        medication=medication,
-        scheduled_time=scheduled_dt,
-        defaults={
-            'patient': medication.user,
-            'status': DoseLog.STATUS_PENDING,
-        },
-    )
+        # NOTE: We no longer create a DoseLog here.
+        # Dose logs are now generated lazily — see care/views.py
+        # ensure_todays_dose_logs(), which runs whenever the patient's or
+        # caregiver's dashboard is loaded. This means a medication shows
+        # up correctly every day it's due, not just the day it was created.
 
 
 class MedicationRetrieveUpdateView(generics.RetrieveUpdateAPIView):

@@ -9,7 +9,6 @@ class MedicationSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
-    # Write-only: caregiver passes the patient's user id
     patient_id = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
@@ -19,10 +18,22 @@ class MedicationSerializer(serializers.ModelSerializer):
             'name',
             'dosage',
             'frequency',
+            'day_of_week',
             'time',
             'reminder',
             'taken',
+            'is_active',
             'notes',
             'created_at',
             'patient_id',
         ]
+
+    def validate(self, data):
+        frequency = data.get('frequency')
+        day_of_week = data.get('day_of_week')
+
+        if frequency == Medication.FREQUENCY_WEEKLY and day_of_week is None:
+            raise serializers.ValidationError(
+                {'day_of_week': 'Please select a day of the week for weekly medications.'}
+            )
+        return data
